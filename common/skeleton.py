@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Skeleton(object):
-    def __init__(self, parents, joints_left, joints_right, joints_group):
+    def __init__(self, parents, joints_left, joints_right, joints_group, N=1):
         assert len(joints_left) == len(joints_right)
 
         self._parents = np.array(parents)
@@ -12,9 +12,13 @@ class Skeleton(object):
         self._joints_right = joints_right
         self._joints_group = joints_group
         self._compute_metadata()
+        self._N = N
 
     def num_joints(self):
         return len(self._parents)
+
+    def num_person(self):
+        return self._N
 
     def parents(self):
         return self._parents

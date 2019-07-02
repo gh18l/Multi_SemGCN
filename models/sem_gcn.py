@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 import torch.nn as nn
-from models.sem_graph_conv import SemGraphConv
+from models.sem_graph_conv import SemGraphConv, MultiSemGraphConv
 from models.graph_non_local import GraphNonLocal
 
 
@@ -59,7 +59,7 @@ class _GraphNonLocal(nn.Module):
 
 
 class SemGCN(nn.Module):
-    def __init__(self, adj, hid_dim, coords_dim=(2, 3), num_layers=4, nodes_group=None):
+    def __init__(self, adj, adj_mutual, hid_dim, coords_dim=(2, 3), num_layers=4, nodes_group=None):
         super(SemGCN, self).__init__()
 
         _gconv_input = [_GraphConv(adj, coords_dim[0], hid_dim, p_dropout=None)]  #出来是17*hid_dim的矩阵

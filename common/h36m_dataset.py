@@ -11,7 +11,8 @@ h36m_skeleton = Skeleton(parents=[-1, 0, 1, 2, 3, 4, 0, 6, 7, 8, 9, 0, 11, 12, 1
                          joints_left=[6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 21, 22, 23],
                          joints_right=[1, 2, 3, 4, 5, 24, 25, 26, 27, 28, 29, 30, 31],
                          # joints_group=[(1, 2, 3), (4, 5, 6), (0, 7, 8), (14, 15, 16), (11, 12, 13), (9, 10)])
-                         joints_group=[[2, 3], [5, 6], [1, 4], [0, 7], [8, 9], [15, 16], [12, 13], [11, 14], [10]])
+                         joints_group=[[2, 3], [5, 6], [1, 4], [0, 7], [8, 9], [15, 16], [12, 13], [11, 14], [10]],
+                         N=1)
 
 # Joints in H3.6M -- data has 32 joints, but only 17 that move; these are the indices.
 H36M_NAMES = [''] * 32
@@ -228,9 +229,9 @@ h36m_cameras_extrinsic_params = {
 }
 
 
-class Human36mDataset(MocapDataset):
+class CMUPanoDataset(MocapDataset):
     def __init__(self, path, remove_static_joints=True):
-        super(Human36mDataset, self).__init__(skeleton=h36m_skeleton)
+        super(CMUPanoDataset, self).__init__(skeleton=h36m_skeleton)
 
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
         for cameras in self._cameras.values():

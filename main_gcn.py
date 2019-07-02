@@ -97,8 +97,8 @@ def main(args):
     # Create model
     print("==> Creating model...")
 
-    adj = adj_mx_from_skeleton(dataset.skeleton())
-    model_pos = SemGCN(adj, args.hid_dim, num_layers=args.num_layers,
+    adj, adj_mutual = adj_mx_from_skeleton(dataset.skeleton())  ##multi-person adj-matrix
+    model_pos = SemGCN(adj, adj_mutual, args.hid_dim, num_layers=args.num_layers,
                        nodes_group=dataset.skeleton().joints_group() if args.non_local else None).to(device)
     print("==> Total parameters: {:.2f}M".format(sum(p.numel() for p in model_pos.parameters()) / 1000000.0))
 
