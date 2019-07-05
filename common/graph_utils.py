@@ -69,12 +69,17 @@ def adj_mx_from_skeleton(skeleton, sparse=True):
     r = []
     c = []
     data = np.ones(num_person*num_person*num_joints)
-    for i in range(num_person):
-        for j in range(num_joints):
-            for k in range(num_person):
-                if i*num_joints+j != k*num_joints+j:
-                    r.append(i*num_joints+j)
-                    c.append(k*num_joints+j)
+
+    for i in range(num_person*num_joints):
+        for j in range(num_person):
+            r.append(i)
+            c.append(i/num_person*num_person+j)
+    # for i in range(num_person):
+    #     for j in range(num_joints):
+    #         for k in range(num_person):
+    #             if i*num_joints+j != k*num_joints+j:
+    #                 r.append(i*num_joints+j)
+    #                 c.append(k*num_joints+j)
     adj_mx_mutual = sp.coo_matrix((data, (r, c)), shape=(num_joints * num_person, num_joints * num_person), dtype=np.float32)
     adj_mx_mutual = normalize(adj_mx_mutual)  # 权重指的是每个节点
     if sparse:
