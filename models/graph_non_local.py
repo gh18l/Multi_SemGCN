@@ -10,11 +10,11 @@ class _NonLocalBlock(nn.Module):
 
         assert dimension in [1, 2, 3]
 
-        self.dimension = dimension
-        self.sub_sample = sub_sample
+        self.dimension = dimension  ## 1
+        self.sub_sample = sub_sample  ## 2
 
-        self.in_channels = in_channels
-        self.inter_channels = inter_channels
+        self.in_channels = in_channels  ## hid_dim
+        self.inter_channels = inter_channels ## None
 
         if self.inter_channels is None:
             self.inter_channels = in_channels // 2
@@ -32,7 +32,7 @@ class _NonLocalBlock(nn.Module):
         elif dimension == 1:
             conv_nd = nn.Conv1d
             max_pool = nn.MaxPool1d
-            bn = nn.BatchNorm1d
+            bn = nn.BatchNorm1d   ## 对小批量的2d或者3d数据进行标准化处理
         else:
             raise Exception('Error feature dimension.')
 
@@ -77,7 +77,7 @@ class _NonLocalBlock(nn.Module):
             self.phi = nn.Sequential(self.phi, max_pool(kernel_size=sub_sample))
 
     def forward(self, x):
-        batch_size = x.size(0)  # x: (b, c, t, h, w)
+        batch_size = x.size(0)  # x: (b, hid_dim, 17)
 
         g_x = self.g(x).view(batch_size, self.inter_channels, -1)
         g_x = g_x.permute(0, 2, 1)

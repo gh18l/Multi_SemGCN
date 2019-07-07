@@ -1,6 +1,6 @@
 #coding:utf-8
 from __future__ import absolute_import
-
+import torch
 import torch.nn as nn
 from models.sem_graph_conv import SemGraphConv, MultiSemGraphConv
 from models.graph_non_local import GraphNonLocal
@@ -57,6 +57,25 @@ class _GraphNonLocal(nn.Module):
         out = out[:, self.restored_order, :]
         return out
 
+class _MutualGraphNonLocal(nn.Module):
+    def __init__(self, hid_dim, grouped_order, restored_order, group_size, num_person=1):
+        super(_MutualGraphNonLocal, self).__init__()
+        self.nonlocal = GraphNonLocal(hid_dim, sub_sample=group_size)
+        self.grouped_order = grouped_order
+        self.restored_order = restored_order
+        self.num_person = num_person
+
+    def forward(self, x): # batch 17N hid_dim
+        ## only test, most lowest mode
+        out = torch.zeros_like(x)
+        for i in range(self.num_person):
+            x_n = x[:, i::self.num_person, :]
+            out_n = x_n[:, self.grouped_order, :]
+            out_n = self.nonlocal(out_n.transpose(1,2)).transpose(1,2)
+            out_n = out_n[:, self.restored_order, :]
+            out[:, i::self.num_person, :] = out_n
+        return out
+
 
 class SemGCN(nn.Module):
     def __init__(self, adj, adj_mutual, hid_dim, coords_dim=(2, 3), num_layers=4, nodes_group=None):
@@ -72,14 +91,14 @@ class SemGCN(nn.Module):
             group_size = len(nodes_group[0])
             assert group_size > 1
 
-            grouped_order = list(reduce(lambda x, y: x + y, nodes_group))
+            grouped_order = list(reduce(lambda x, y: x + y, nodes_group))  ##list展开
             restored_order = [0] * len(grouped_order)
             for i in range(len(restored_order)):
                 for j in range(len(grouped_order)):
                     if grouped_order[j] == i:
                         restored_order[i] = j
                         break
-
+            ## 相当于先转换为grouped_order的顺序into nonlocal layer，然后再用restored_order恢复原来的顺序
             _gconv_input.append(_GraphNonLocal(hid_dim, grouped_order, restored_order, group_size))
             for i in range(num_layers):
                 _gconv_layers.append(_ResGraphConv(adj, hid_dim, hid_dim, hid_dim, p_dropout=None))
