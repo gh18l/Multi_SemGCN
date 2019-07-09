@@ -28,6 +28,27 @@ class _GraphConv(nn.Module):
         x = self.relu(x)
         return x
 
+class _MultiGraphConv(nn.Module):
+    def __init__(self, adj_mutual, input_dim, output_dim, p_dropout=None):
+        super(_MultiGraphConv, self).__init__()
+
+        self.gconv = MultiSemGraphConv(input_dim, output_dim, adj_mutual)  #NN * output_dim
+        self.bn = nn.BatchNorm1d(output_dim)
+        self.relu = nn.ReLU()
+
+        if p_dropout is not None:
+            self.dropout = nn.Dropout(p_dropout)
+        else:
+            self.dropout = None
+
+    def forward(self, x): #注意这里，输入是input[0]：joint特征; [1]：用来计算adj_mutual中的权重；输出是NN * dim的矩阵
+        x = self.gconv(x).transpose(1, 2)
+        x = self.bn(x).transpose(1, 2)
+        if self.dropout is not None:
+            x = self.dropout(self.relu(x))
+
+        x = self.relu(x)
+        return x
 
 class _ResGraphConv(nn.Module):
     def __init__(self, adj, input_dim, output_dim, hid_dim, p_dropout):
@@ -104,6 +125,43 @@ class SemGCN(nn.Module):
                 _gconv_layers.append(_ResGraphConv(adj, hid_dim, hid_dim, hid_dim, p_dropout=None))
                 _gconv_layers.append(_GraphNonLocal(hid_dim, grouped_order, restored_order, group_size))
 
+        self.gconv_input = nn.Sequential(*_gconv_input)
+        self.gconv_layers = nn.Sequential(*_gconv_layers)
+        self.gconv_output = SemGraphConv(hid_dim, coords_dim[1], adj)
+
+    def forward(self, x):
+        out = self.gconv_input(x)
+        out = self.gconv_layers(out)
+        out = self.gconv_output(out)
+        return out
+
+class MultiSemGCN(nn.Module):
+    def __init__(self, adj, adj_mutual, hid_dim, coords_dim=(2, 3), num_layers=4, nodes_group=None):
+        super(MultiSemGCN, self).__init__()
+
+        _gconv_input = [_GraphConv(adj, coords_dim[0], hid_dim, p_dropout=None)]  #出来是17*hid_dim的矩阵
+        _gconv_layers = []
+
+        if nodes_group is None:
+            for i in range(num_layers):
+                _gconv_layers.append(_ResGraphConv(adj, hid_dim, hid_dim, hid_dim, p_dropout=None))
+        else:
+            group_size = len(nodes_group[0])
+            assert group_size > 1
+
+            grouped_order = list(reduce(lambda x, y: x + y, nodes_group))  ##list展开
+            restored_order = [0] * len(grouped_order)
+            for i in range(len(restored_order)):
+                for j in range(len(grouped_order)):
+                    if grouped_order[j] == i:
+                        restored_order[i] = j
+                        break
+            ## 相当于先转换为grouped_order的顺序into nonlocal layer，然后再用restored_order恢复原来的顺序
+            _gconv_input.append(_MutualGraphNonLocal(hid_dim, grouped_order, restored_order, group_size))
+            for i in range(num_layers):
+                _gconv_layers.append(_ResGraphConv(adj, hid_dim, hid_dim, hid_dim, p_dropout=None))
+                _gconv_layers.append(_MutualGraphNonLocal(hid_dim, grouped_order, restored_order, group_size))
+                _gconv_layers.append(_MultiGraphConv(adj_mutual, hid_dim, hid_dim))
         self.gconv_input = nn.Sequential(*_gconv_input)
         self.gconv_layers = nn.Sequential(*_gconv_layers)
         self.gconv_output = SemGraphConv(hid_dim, coords_dim[1], adj)

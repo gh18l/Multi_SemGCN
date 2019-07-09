@@ -55,7 +55,7 @@ class SemGraphConv(nn.Module):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
 
 
-class MutualSemGraphConv(nn.Module):
+class MultiSemGraphConv(nn.Module):
     """
     Semantic graph convolution layer
     """
@@ -72,7 +72,7 @@ class MutualSemGraphConv(nn.Module):
         ...]
         :param bias:
         '''
-        super(MutualSemGraphConv, self).__init__()
+        super(MultiSemGraphConv, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
 

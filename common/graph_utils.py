@@ -50,9 +50,9 @@ def adj_mx_from_skeleton(skeleton, sparse=True):
     data = np.ones(edges.shape[0] * num_person)
     r = []
     c = []
-    for i in range(num_person):
-        tmp_r = edges[:, 0] + i * num_joints
-        tmp_c = edges[:, 1] + i * num_joints
+    for i in range(num_person): #第i个人，第edges[:, 0]个joint
+        tmp_r = i + edges[:, 0]*num_joints
+        tmp_c = i + edges[:, 1]*num_joints
         r.extend(tmp_r)
         c.extend(tmp_c)
     adj_mx = sp.coo_matrix((data, (r, c)), shape=(num_joints*num_person, num_joints*num_person), dtype=np.float32)
