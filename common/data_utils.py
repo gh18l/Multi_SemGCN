@@ -3,7 +3,8 @@ from __future__ import absolute_import, division
 import numpy as np
 
 from .camera import world_to_camera, normalize_screen_coordinates
-
+from scipy.io import loadmat
+import os
 
 def create_2d_data(data_path, dataset):
     keypoints = np.load(data_path, allow_pickle=True)
@@ -75,3 +76,32 @@ def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_p
                 out_poses_3d[i] = out_poses_3d[i][::stride]
 
     return out_poses_3d, out_poses_2d, out_actions
+
+def get_MUCO3DHP_data(data_path):
+    mat_files = os.listdir(data_path)
+    mat_files = sorted([filename for filename in mat_files if filename.endswith(".mat")],
+                            key=lambda d: int((d.split('_')[1])))
+    data_2d = []
+    data_3d = []
+    img_name = []
+    for ind, mat_file in enumerate(mat_files):
+        ## num=500
+        mat_file_path = os.path.join(data_path, mat_file)
+        data = loadmat(mat_file_path)
+        for i in range(len())
+        _data_2d = list(data["joint_loc2"])
+        _data_3d = list(data["joint_loc3"])
+        _img_name = data["img_names"]
+        data_2d.append(_data_2d)
+        data_3d.append(_data_3d)
+        img_name.append(_img_name)
+    ## should be N * M * 17 * 3, N images, M persons per image
+    data_2d = np.concatenate(data_2d)
+    data_3d = np.concatenate(data_3d)
+    img_name = np.concatenate(img_name)
+
+    return data_2d, data_3d, img_name
+
+
+
+
