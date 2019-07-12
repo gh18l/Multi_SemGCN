@@ -88,13 +88,23 @@ def get_MUCO3DHP_data(data_path):
         ## num=500
         mat_file_path = os.path.join(data_path, mat_file)
         data = loadmat(mat_file_path)
-        for i in range(len())
-        _data_2d = list(data["joint_loc2"])
-        _data_3d = list(data["joint_loc3"])
+        _data_3d = data["joint_loc3"]
+        _data_3d = list(_data_3d.transpose((3, 2, 1, 0)))
+        _data_2d = data["joint_loc2"]
+        _data_2d = list(_data_2d.transpose((3, 2, 1, 0)))
         _img_name = data["img_names"]
+        _img_name = list(_img_name.transpose((1, 0)))
         data_2d.append(_data_2d)
         data_3d.append(_data_3d)
         img_name.append(_img_name)
+        a = 1
+        # for i in range(len())
+        # _data_2d = list(data["joint_loc2"])
+        # _data_3d = list(data["joint_loc3"])
+        # _img_name = data["img_names"]
+        # data_2d.append(_data_2d)
+        # data_3d.append(_data_3d)
+        # img_name.append(_img_name)
     ## should be N * M * 17 * 3, N images, M persons per image
     data_2d = np.concatenate(data_2d)
     data_3d = np.concatenate(data_3d)

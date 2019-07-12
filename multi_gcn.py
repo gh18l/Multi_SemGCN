@@ -1,5 +1,4 @@
 #coding:utf-8
-import path
 from common.h36m_dataset import CMUPanoDataset
 from common.data_utils import fetch, read_3d_data, create_2d_data, get_MUCO3DHP_data
 from common.graph_utils import adj_mx_from_skeleton
@@ -17,8 +16,8 @@ from progress.bar import Bar
 from common.generators import PoseGenerator
 from common.loss import mpjpe, p_mpjpe
 def main():
-    human36m_data_path = ""
-    MUCO3DHP_path = ""
+    human36m_data_path = os.path.join('data', 'data_3d_' + "h36m" + '.npz')
+    MUCO3DHP_path = "/home/lgh/data/multi3Dpose/muco-3dhp/output/unaugmented_set_001"
     hid_dim = 128
     num_layers = 4
     non_local = True
@@ -31,8 +30,8 @@ def main():
     snapshot = 5
     batch_size = 64
     print('==> Loading multi-person dataset...')
-    human36m_dataset_path = path.join(human36m_data_path)
-    dataset = CMUPanoDataset(human36m_dataset_path)
+    #human36m_dataset_path = path.join(human36m_data_path)
+    dataset = CMUPanoDataset(human36m_data_path)
     data_2d, data_3d, img_name = get_MUCO3DHP_data(MUCO3DHP_path)  ## N * (M*17) * 2    N * (M*17) * 3 numpy
 
     ### divide into trainsets and testsets 4/5 and 1/5
@@ -177,3 +176,6 @@ def evaluate(data_loader, model_pos, device):
 
     bar.finish()
     return epoch_loss_3d_pos.avg, epoch_loss_3d_pos_procrustes.avg
+
+if __name__ == '__main__':
+    main()
