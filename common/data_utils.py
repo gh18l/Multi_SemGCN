@@ -77,7 +77,7 @@ def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_p
 
     return out_poses_3d, out_poses_2d, out_actions
 
-def get_MUCO3DHP_data(data_path):
+def get_MUCO3DHP_data(data_path, args):
     mat_files = os.listdir(data_path)
     mat_files = sorted([filename for filename in mat_files if filename.endswith(".mat")],
                             key=lambda d: int((d.split('_')[1])))
