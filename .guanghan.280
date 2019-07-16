@@ -1,6 +1,6 @@
 #!/bin/bash
-
-#block(name=guanghan, threads=1, memory=10000, subtasks=1, gpu=true, hours=1)
+export N_SUBTASKS=1
+export SUBTASK_ID=1
     python multi_gcn.py
     #python Bundle_Adjustment_motion_refine_optimization_new.py people72.json
     # can check the status and available resources using commands: `qstat`, `qinfo`.

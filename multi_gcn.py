@@ -15,9 +15,14 @@ import time
 from progress.bar import Bar
 from common.generators import PoseGenerator
 from common.loss import mpjpe, p_mpjpe
+from tensorboardX import SummaryWriter
+
+#TODO
+# 1. adj sparse CPU incompatible
+
 def main():
     human36m_data_path = os.path.join('data', 'data_3d_' + "h36m" + '.npz')
-    MUCO3DHP_path = "/home/lgh/data/multi3Dpose/muco-3dhp/output/unaugmented_set_001"
+    MUCO3DHP_path = "/hdd10T/guanghan2/multi3Dpose/muco-3dhp/output/unaugmented_set_001"
     hid_dim = 128
     num_layers = 4
     non_local = True
@@ -31,9 +36,9 @@ def main():
     batch_size = 64
     print('==> Loading multi-person dataset...')
     #human36m_dataset_path = path.join(human36m_data_path)
-    dataset = CMUPanoDataset(human36m_data_path)
-    data_2d, data_3d, img_name = get_MUCO3DHP_data(MUCO3DHP_path)  ## N * (M*17) * 2    N * (M*17) * 3 numpy
-
+    data_2d, data_3d, img_name, feature_mutual = get_MUCO3DHP_data(MUCO3DHP_path)  ## N * (M*17) * 2    N * (M*17) * 3 numpy
+    person_num = data_2d.shape[1] / 17
+    dataset = CMUPanoDataset(human36m_data_path, person_num)
     ### divide into trainsets and testsets 4/5 and 1/5
     num = len(data_2d)
     train_num = num * 4 / 5
@@ -41,8 +46,8 @@ def main():
     cudnn.benchmark = True
     device = torch.device("cuda")
 
-    adj, adj_mutual = adj_mx_from_skeleton(dataset.skeleton()) #ok
-    model_pos = MultiSemGCN(adj, adj_mutual, hid_dim, num_layers=num_layers,
+    adj, adj_mutual = adj_mx_from_skeleton(dataset.skeleton(), person_num) #ok
+    model_pos = MultiSemGCN(adj, adj_mutual, person_num, hid_dim, num_layers=num_layers,
                        nodes_group=dataset.skeleton().joints_group() if non_local else None).to(device)  #ok
     criterion = nn.MSELoss(reduction='mean').to(device)
     optimizer = torch.optim.Adam(model_pos.parameters(), lr=lr)
@@ -51,30 +56,30 @@ def main():
     error_best = None
     glob_step = 0
     lr_now = lr
-    ckpt_dir_path = path.join('checkpoint',
+    ckpt_dir_path = os.path.join('checkpoint_multi',
                               datetime.datetime.now().isoformat() + "_l_%04d_hid_%04d_e_%04d_non_local_%d" % (
                               num_layers, hid_dim, epochs, non_local))
 
-    if not path.exists(ckpt_dir_path):
+    if not os.path.exists(ckpt_dir_path):
         os.makedirs(ckpt_dir_path)
         print('=> Making checkpoint dir: {}'.format(ckpt_dir_path))
 
     logger = Logger(os.path.join(ckpt_dir_path, 'log.txt'))
     logger.set_names(['epoch', 'lr', 'loss_train', 'error_eval_p1', 'error_eval_p2'])
 
-    train_loader = DataLoader(PoseGenerator(data_3d[:train_num], data_2d[:train_num]), batch_size=batch_size,
+    train_loader = DataLoader(PoseGenerator(data_3d[:train_num], data_2d[:train_num], feature_mutual[:train_num]), batch_size=batch_size,
                               shuffle=True, num_workers=num_workers, pin_memory=True)
 
-    valid_loader = DataLoader(PoseGenerator(data_3d[train_num:], data_2d[train_num:]), batch_size=batch_size,
+    valid_loader = DataLoader(PoseGenerator(data_3d[train_num:], data_2d[train_num:], feature_mutual[train_num:]), batch_size=batch_size,
                               shuffle=False, num_workers=num_workers, pin_memory=True)
 
+    writer = SummaryWriter()
     for epoch in range(start_epoch, epochs):
-        print('\nEpoch: %d | LR: %.8f' % (epoch + 1, lr_now))
-
         # Train for one epoch
+        print('\nEpoch: %d | LR: %.8f' % (epoch + 1, lr_now))
         epoch_loss, lr_now, glob_step = train(train_loader, model_pos, criterion, optimizer, device, lr, lr_now,
                                               glob_step, _lr_decay, lr_gamma, max_norm=max_norm)
-
+        writer.add_scalar('epoch_loss', epoch_loss, epoch)
         # Evaluate
         error_eval_p1, error_eval_p2 = evaluate(valid_loader, model_pos, device)
 
@@ -92,6 +97,7 @@ def main():
                        'optimizer': optimizer.state_dict(), 'error': error_eval_p1}, ckpt_dir_path)
 
     logger.close()
+    writer.close()
     logger.plot(['loss_train', 'error_eval_p1'])
     savefig(path.join(ckpt_dir_path, 'log.eps'))
 
@@ -106,17 +112,18 @@ def train(data_loader, model_pos, criterion, optimizer, device, lr_init, lr_now,
     end = time.time()
 
     bar = Bar('Train', max=len(data_loader))
-    for i, (targets_3d, inputs_2d) in enumerate(data_loader):
+    for i, (targets_3d, inputs_2d, feature_mutual) in enumerate(data_loader):
         # Measure data loading time
+        print(' Batch: %d' % i)
         data_time.update(time.time() - end)
-        num_poses = targets_3d.size(0)
+        num_poses = targets_3d.size(1)
 
         step += 1
         if step % decay == 0 or step == 1:
             lr_now = lr_decay(optimizer, step, lr_init, decay, gamma)
 
-        targets_3d, inputs_2d = targets_3d.to(device), inputs_2d.to(device)
-        outputs_3d = model_pos(inputs_2d)
+        targets_3d, inputs_2d, feature_mutual = targets_3d.to(device), inputs_2d.to(device), feature_mutual.to(device)
+        outputs_3d = model_pos([inputs_2d, feature_mutual])
 
         optimizer.zero_grad()
         loss_3d_pos = criterion(outputs_3d, targets_3d)
@@ -152,14 +159,15 @@ def evaluate(data_loader, model_pos, device):
     end = time.time()
 
     bar = Bar('Eval ', max=len(data_loader))
-    for i, (targets_3d, inputs_2d, _) in enumerate(data_loader):
+    for i, (targets_3d, inputs_2d, feature_mutual) in enumerate(data_loader):
         # Measure data loading time
         data_time.update(time.time() - end)
-        num_poses = targets_3d.size(0)
+        num_poses = targets_3d.size(1)
 
-        inputs_2d = inputs_2d.to(device)
-        outputs_3d = model_pos(inputs_2d).cpu()
-        outputs_3d[:, :, :] -= outputs_3d[:, :1, :]  # Zero-centre the root (hip)
+        inputs_2d, feature_mutual = inputs_2d.to(device), feature_mutual.to(device)
+        outputs_3d = model_pos([inputs_2d, feature_mutual]).cpu()
+
+        #outputs_3d[:, :, :] -= outputs_3d[:, :1, :]  # Zero-centre the root (hip)
 
         epoch_loss_3d_pos.update(mpjpe(outputs_3d, targets_3d).item() * 1000.0, num_poses)
         epoch_loss_3d_pos_procrustes.update(p_mpjpe(outputs_3d.numpy(), targets_3d.numpy()).item() * 1000.0, num_poses)

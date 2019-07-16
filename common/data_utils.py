@@ -84,20 +84,23 @@ def get_MUCO3DHP_data(data_path):
     data_2d = []
     data_3d = []
     img_name = []
+    person_num = []
+    pose_num = []
     for ind, mat_file in enumerate(mat_files):
         ## num=500
         mat_file_path = os.path.join(data_path, mat_file)
         data = loadmat(mat_file_path)
         _data_3d = data["joint_loc3"]
-        _data_3d = list(_data_3d.transpose((3, 2, 1, 0)))
+        person_num = _data_3d.shape[2]
+        pose_num = _data_3d.shape[1]
+        _data_3d = list(_data_3d.transpose((3, 1, 2, 0)))  #framenum 17 numperson 3
         _data_2d = data["joint_loc2"]
-        _data_2d = list(_data_2d.transpose((3, 2, 1, 0)))
+        _data_2d = list(_data_2d.transpose((3, 1, 2, 0)))
         _img_name = data["img_names"]
         _img_name = list(_img_name.transpose((1, 0)))
         data_2d.append(_data_2d)
         data_3d.append(_data_3d)
         img_name.append(_img_name)
-        a = 1
         # for i in range(len())
         # _data_2d = list(data["joint_loc2"])
         # _data_3d = list(data["joint_loc3"])
@@ -105,12 +108,29 @@ def get_MUCO3DHP_data(data_path):
         # data_2d.append(_data_2d)
         # data_3d.append(_data_3d)
         # img_name.append(_img_name)
-    ## should be N * M * 17 * 3, N images, M persons per image
+    ## should be N * (M*17) * 3, N images, M persons per image
     data_2d = np.concatenate(data_2d)
     data_3d = np.concatenate(data_3d)
     img_name = np.concatenate(img_name)
 
-    return data_2d, data_3d, img_name
+    ## align the data
+    frame_num = len(data_2d)
+    data_2d = np.reshape(data_2d, (frame_num, -1, 2))
+    data_3d = np.reshape(data_3d, (frame_num, -1, 3))
+
+    # align data for calculating adj_mutual
+    feature_mutual = np.zeros((frame_num, person_num*person_num, pose_num*2*2))
+    for frame in range(frame_num):
+        for i in range(person_num):
+            for j in range(person_num):
+                src = j
+                target = i
+                tmp1 = data_2d[frame, src::person_num, :]
+                tmp2 = data_2d[frame, target::person_num, :]
+                tmp = np.concatenate((tmp1, tmp2))
+                feature_mutual[frame, target*person_num+src, :] = np.reshape(tmp, (1,-1))
+
+    return data_2d, data_3d, img_name, feature_mutual
 
 
 

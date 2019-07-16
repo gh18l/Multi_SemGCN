@@ -230,7 +230,7 @@ h36m_cameras_extrinsic_params = {
 
 
 class CMUPanoDataset(MocapDataset):
-    def __init__(self, path, remove_static_joints=True):
+    def __init__(self, path, person_num, remove_static_joints=True):
         super(CMUPanoDataset, self).__init__(skeleton=h36m_skeleton)
 
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)

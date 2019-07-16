@@ -40,9 +40,9 @@ def adj_mx_from_edges(num_pts, edges, sparse=True):
     return adj_mx
 
 
-def adj_mx_from_skeleton(skeleton, sparse=True):
+def adj_mx_from_skeleton(skeleton, person_num, sparse=False):
     num_joints = skeleton.num_joints()
-    num_person = skeleton.num_person()
+    num_person = person_num
     #edge:zip([子节点,父节点]) 除去根节点, 只取17个点
     edges = list(filter(lambda x: x[1] >= 0, zip(list(range(0, num_joints)), skeleton.parents())))
 
@@ -51,8 +51,8 @@ def adj_mx_from_skeleton(skeleton, sparse=True):
     r = []
     c = []
     for i in range(num_person): #第i个人，第edges[:, 0]个joint
-        tmp_r = i + edges[:, 0]*num_joints
-        tmp_c = i + edges[:, 1]*num_joints
+        tmp_r = i + edges[:, 0]*num_person
+        tmp_c = i + edges[:, 1]*num_person
         r.extend(tmp_r)
         c.extend(tmp_c)
     adj_mx = sp.coo_matrix((data, (r, c)), shape=(num_joints*num_person, num_joints*num_person), dtype=np.float32)

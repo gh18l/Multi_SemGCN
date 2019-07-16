@@ -1,0 +1,2 @@
+epoch	lr	loss_train	error_eval_p1	error_eval_p2	
+1.000000	0.001000	68380.407808	406860.848395	293278.717926	

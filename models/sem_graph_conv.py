@@ -60,7 +60,7 @@ class MultiSemGraphConv(nn.Module):
     Semantic graph convolution layer
     """
 
-    def __init__(self, in_features, out_features, adj_mutual, bias=True):
+    def __init__(self, in_features, out_features, person_num, adj_mutual, bias=True):
         '''
         :param in_features: dim of input feature
         :param out_features: dim of output feature
@@ -82,12 +82,13 @@ class MultiSemGraphConv(nn.Module):
         ### mutual connection
         self.adj_mutual = adj_mutual
         self.m_mutual = (self.adj_mutual > 0)
-        self.m_mutual = self.m_mutual.T ## for calculating
+        self.m_mutual = self.m_mutual.t() ## for calculating
 
         ## 设连接矩阵为xJN, 在这里我们把两个mutual点之间的权重设置为[x11,y11,x21,y21,...,x172,y172]*W，W为可学习的参数。
         ## 当然，权重也可以是[xa1,ya1, xa2, ya2].
         ## above is nosense
-        self.adj_mutual_W = nn.Parameter(torch.zeros(size=(self.adj.size(0)*2*2, self.adj.size(0)), dtype=torch.float))
+        pose_num = int(self.adj_mutual.size(0)/person_num)
+        self.adj_mutual_W = nn.Parameter(torch.zeros(size=(pose_num*2*2, pose_num), dtype=torch.float))
         nn.init.xavier_uniform_(self.adj_mutual_W.data, gain=1.414)
 
         if bias:
@@ -106,16 +107,16 @@ class MultiSemGraphConv(nn.Module):
         h1 = torch.matmul(input[0], self.W[1])
 
         e = torch.matmul(input[1], self.adj_mutual_W)  ## N(N) * 17
-        e = e.t()
-        e = e.reshape([-1]) ##-->这样来
-        adj_mutual = -9e15 * torch.ones_like(self.adj_mutual).to(input.device)
+        e = e.permute(0,2,1)
+        e = e.reshape([e.size()[0], -1]) ##-->这样来
+        adj_mutual = -9e15 * torch.ones(e.size()[0], self.adj_mutual.size()[0], self.adj_mutual.size()[1]).to(input[0].device)
 
-        adj_mutual[self.m_mutual] = e  ## 给连接矩阵的非0值赋参数，即每一个非0值位置都是一个参数，顺序是从上往下来
-        adj_mutual = adj_mutual.t()
+        adj_mutual[:, self.m_mutual] = e  ## 给连接矩阵的非0值赋参数，即每一个非0值位置都是一个参数，顺序是从上往下来
+        adj_mutual = adj_mutual.permute(0,2,1)
 
-        adj_mutual = F.softmax(adj_mutual, dim=1)  ## 对这个矩阵softmax一下
+        adj_mutual = F.softmax(adj_mutual, dim=2)  ## 对这个矩阵softmax一下
 
-        M = torch.eye(adj_mutual.size(0), dtype=torch.float).to(input.device)
+        M = torch.eye(adj_mutual.size(1), dtype=torch.float).to(input[0].device)
 
         ##对于每个图节点，自己对自己的增益是一套参数，邻接点对自己的增益是另外一套参数。
         # 先把2D joint拉到128维，在根据连接矩阵作图卷积。图权重根据节点的邻居数量决定
