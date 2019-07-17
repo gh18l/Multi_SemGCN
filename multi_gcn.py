@@ -1,4 +1,18 @@
 #coding:utf-8
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import viz
+
+from common.log import Logger, savefig
+from torch.utils.data import DataLoader
+from common.utils import AverageMeter, lr_decay, save_ckpt
+import time
+from progress.bar import Bar
+from common.generators import PoseGenerator
+from common.loss import mpjpe, p_mpjpe
+from tensorboardX import SummaryWriter
+import argparse
+
 from common.h36m_dataset import CMUPanoDataset
 from common.data_utils import fetch, read_3d_data, create_2d_data, get_MUCO3DHP_data
 from common.graph_utils import adj_mx_from_skeleton
@@ -8,21 +22,20 @@ import torch
 import torch.nn as nn
 import datetime
 import os
-from common.log import Logger, savefig
-from torch.utils.data import DataLoader
-from common.utils import AverageMeter, lr_decay, save_ckpt
-import time
-from progress.bar import Bar
-from common.generators import PoseGenerator
-from common.loss import mpjpe, p_mpjpe
-from tensorboardX import SummaryWriter
-
+import numpy as np
 #TODO
 # 1. adj sparse CPU incompatible
 
-def main():
+def parse_args():
+    parser = argparse.ArgumentParser(description='PyTorch training script')
+    # General arguments
+    parser.add_argument('-a', '--mutual_adj', default='0', type=int, metavar='NAME', help='adj')
+    args = parser.parse_args()
+    return args
+
+def main(args):
     human36m_data_path = os.path.join('data', 'data_3d_' + "h36m" + '.npz')
-    MUCO3DHP_path = "/hdd10T/guanghan2/multi3Dpose/muco-3dhp/output/unaugmented_set_001"
+    MUCO3DHP_path = "/home/lgh/data1/multi3Dpose/muco-3dhp/output/unaugmented_set_001"
     hid_dim = 128
     num_layers = 4
     non_local = True
@@ -36,7 +49,13 @@ def main():
     batch_size = 64
     print('==> Loading multi-person dataset...')
     #human36m_dataset_path = path.join(human36m_data_path)
-    data_2d, data_3d, img_name, feature_mutual = get_MUCO3DHP_data(MUCO3DHP_path)  ## N * (M*17) * 2    N * (M*17) * 3 numpy
+    data_2d, data_3d, img_name, feature_mutual = get_MUCO3DHP_data(MUCO3DHP_path, args)  ## N * (M*17) * 2    N * (M*17) * 3 numpy
+
+    print(img_name[1])
+    ax = plt.subplot(111, projection='3d')
+    #ax.scatter(data_3d[0, 0::4, 0], data_3d[0, 0::4, 1], data_3d[0, 0::4, 2])
+    viz.show3Dpose(data_3d[1,:,:], ax)
+    plt.show()
     person_num = data_2d.shape[1] / 17
     dataset = CMUPanoDataset(human36m_data_path, person_num)
     ### divide into trainsets and testsets 4/5 and 1/5
@@ -186,4 +205,4 @@ def evaluate(data_loader, model_pos, device):
     return epoch_loss_3d_pos.avg, epoch_loss_3d_pos_procrustes.avg
 
 if __name__ == '__main__':
-    main()
+    main(parse_args())

@@ -43,7 +43,8 @@ class _MultiGraphConv(nn.Module):
 
     def forward(self, x): #注意这里，输入是input[0]：joint特征; [1]：用来计算adj_mutual中的权重；输出是NN * dim的矩阵
         x = self.gconv(x).transpose(1, 2)
-        x = self.bn(x).transpose(1, 2)
+        x = self.bn(x)
+        x = x.transpose(1, 2)
         if self.dropout is not None:
             x = self.dropout(self.relu(x))
 

@@ -77,7 +77,37 @@ def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_p
 
     return out_poses_3d, out_poses_2d, out_actions
 
-def get_MUCO3DHP_data(data_path):
+
+def MUCO3DHP_data_filter(data_2d, data_3d, img_name):
+    _data_2d = data_2d.transpose((0,2,1,3))
+    _data_3d = data_3d.transpose((0, 2, 1, 3))
+    img_width = 2048
+    img_height = 2048
+    # filt out the frame which one person is out of the image.
+    filters = []
+    for i in range(len(_data_2d)):
+        discard = 0
+        for j in range(_data_2d.shape[1]):
+            total = 0
+            for k in range(_data_2d.shape[2]):
+                if(_data_2d[i, j, k, 0]<0 or _data_2d[i, j, k, 0]>img_width-1 or _data_2d[i, j, k, 1]<0 or _data_2d[i, j, k, 1]>img_height-1):
+                    total = total + 1
+            if(total > 0):  #0--only save full joint frame...>=data_2d.shape[2]--it is acceptable that some joints is out of image
+                discard = 1
+        if(discard==0):
+            filters.append(i)
+    _data_2d = _data_2d[filters,:,:,:]
+    _data_3d = _data_3d[filters, :, :, :]
+    img_name = img_name[filters]
+
+    _data_2d = _data_2d.transpose((0, 2, 1, 3))
+    _data_3d = _data_3d.transpose((0, 2, 1, 3))
+
+    return _data_2d, _data_3d, img_name
+
+
+
+def get_MUCO3DHP_data(data_path, args):
     mat_files = os.listdir(data_path)
     mat_files = sorted([filename for filename in mat_files if filename.endswith(".mat")],
                             key=lambda d: int((d.split('_')[1])))
@@ -113,6 +143,9 @@ def get_MUCO3DHP_data(data_path):
     data_3d = np.concatenate(data_3d)
     img_name = np.concatenate(img_name)
 
+    data_2d, data_3d, img_name = MUCO3DHP_data_filter(data_2d, data_3d, img_name)
+    a = np.max(data_2d)
+    b = np.min(data_2d)
     ## align the data
     frame_num = len(data_2d)
     data_2d = np.reshape(data_2d, (frame_num, -1, 2))

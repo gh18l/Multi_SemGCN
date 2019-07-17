@@ -1,9 +1,0 @@
-#!/bin/bash
-export N_SUBTASKS=1
-export SUBTASK_ID=1
-    python multi_gcn.py
-    #python Bundle_Adjustment_motion_refine_optimization_new.py people72.json
-    # can check the status and available resources using commands: `qstat`, `qinfo`.
-    sleep 5
-    echo "this block ONLY starts after the previous block finishes. Remember to set gpu=true."
-
