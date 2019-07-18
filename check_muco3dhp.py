@@ -9,11 +9,11 @@ for i in range(8):
         mat_path = basepath + "annot.mat"
         data = loadmat(mat_path)
         for c in range(13):
-            joint2d0 = data['annot2'][c][0].reshape(6416,28,2)
+            joint2d0 = data['annot2'][c][0].reshape(data['annot2'][c][0].shape[0],28,2)
             img_files = os.listdir(path)
             img_files = sorted([filename for filename in img_files if filename.endswith(".jpg") and int((filename.split('_')[1])) == c],
                             key=lambda d: int((d.split('_')[2].split('.')[0])))
-            for ind in range(len(img_files)):
+            for ind in range(min(len(img_files), len(joint2d0))):
                 img = cv2.imread(os.path.join(path, img_files[ind]))
                 joint = joint2d0[ind, :,:]
                 for k in range(len(joint)):
