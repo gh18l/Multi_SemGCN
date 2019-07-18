@@ -58,9 +58,9 @@ docs/_build/
 target/
 
 checkpoint/
-checkpoint_multi/
-data/
-runs/
+checkpoint_multi/*
+data/*
+runs/*
 q.log/
 
 *.zip
