@@ -5,7 +5,7 @@ import numpy as np
 from .camera import world_to_camera, normalize_screen_coordinates
 from scipy.io import loadmat
 import os
-
+import cv2
 def create_2d_data(data_path, dataset):
     keypoints = np.load(data_path, allow_pickle=True)
     keypoints = keypoints['positions_2d'].item()
@@ -79,7 +79,7 @@ def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_p
 
 
 def MUCO3DHP_data_filter(data_2d, data_3d, img_name):
-    _data_2d = data_2d.transpose((0,2,1,3))
+    _data_2d = data_2d.transpose((0,2,1,3))  # batch numperson numpose 2
     _data_3d = data_3d.transpose((0, 2, 1, 3))
     img_width = 2048
     img_height = 2048
@@ -92,7 +92,7 @@ def MUCO3DHP_data_filter(data_2d, data_3d, img_name):
             for k in range(_data_2d.shape[2]):
                 if(_data_2d[i, j, k, 0]<0 or _data_2d[i, j, k, 0]>img_width-1 or _data_2d[i, j, k, 1]<0 or _data_2d[i, j, k, 1]>img_height-1):
                     total = total + 1
-            if(total > 0):  #0--only save full joint frame...>=data_2d.shape[2]--it is acceptable that some joints is out of image
+            if(total > 0):  #>0--only save full joint frame...>=data_2d.shape[2]--it is acceptable that some joints is out of image
                 discard = 1
         if(discard==0):
             filters.append(i)
@@ -145,11 +145,32 @@ def get_MUCO3DHP_data(data_path, args):
 
     data_2d, data_3d, img_name = MUCO3DHP_data_filter(data_2d, data_3d, img_name)
     a = np.max(data_2d)
+    ww = np.where(data_2d==np.max(data_2d))
     b = np.min(data_2d)
+    www = np.where(data_2d == np.min(data_2d))
+
+    imgname = img_name[33330][0][0]
+    img = cv2.imread("/home/lgh/data1/multi3Dpose/muco-3dhp/output/unaugmented_set_001/" + imgname)
+    color = [(0,0,255), (255,0,0), (0,255,0), (0,255,255)]
+    for i in range(17):
+        for j in range(4):
+            cv2.circle(img, tuple(data_2d[33330, i, j, :].astype("int")), 5, color[j], -1)
+    img = cv2.resize(img, (1000,1000))
+    cv2.imshow("1", img)
+    cv2.waitKey()
+    for i in range(17):
+        print(data_2d[16461, i, 0, :])
+    for i in range(17):
+        print(data_2d[40846, i, 0, :])
     ## align the data
     frame_num = len(data_2d)
     data_2d = np.reshape(data_2d, (frame_num, -1, 2))
     data_3d = np.reshape(data_3d, (frame_num, -1, 3))
+
+    # normalize so that data2d is mapped into w--[-1, 1]
+    data_2d = data_2d / args.width * 2 - [1, args.height / args.width]
+    # convert 3D posotion as mm into meters
+    data_3d = data_3d / 1000.0
 
     # align data for calculating adj_mutual
     feature_mutual = np.zeros((frame_num, person_num*person_num, pose_num*2*2))

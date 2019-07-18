@@ -26,10 +26,16 @@ import numpy as np
 #TODO
 # 1. adj sparse CPU incompatible
 
+#TODO7.18
+# 归一化３Ｄ　ｊｏｉｎｔ。更好的ｆｉｌｔ　２Ｄ以便能够处理部分关节点在图像外也能feed。试着用已有的h36m数据搞一下ＳＭＰＬ自编码，弄一个独立的再放网络里精调就行了
+#TODO7.19
+# 查看INF里画出来的2D是什么样子,准不准,然后再尝试筛掉不准的2D帧
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch training script')
     # General arguments
     parser.add_argument('-a', '--mutual_adj', default='0', type=int, metavar='NAME', help='adj')
+    parser.add_argument('-width', '--width', default='2048', type=int, metavar='NAME', help='adj')
+    parser.add_argument('-height', '--height', default='2048', type=int, metavar='NAME', help='adj')
     args = parser.parse_args()
     return args
 
@@ -118,7 +124,7 @@ def main(args):
     logger.close()
     writer.close()
     logger.plot(['loss_train', 'error_eval_p1'])
-    savefig(path.join(ckpt_dir_path, 'log.eps'))
+    savefig(os.path.join(ckpt_dir_path, 'log.eps'))
 
 def train(data_loader, model_pos, criterion, optimizer, device, lr_init, lr_now, step, decay, gamma, max_norm=True):
     batch_time = AverageMeter()
